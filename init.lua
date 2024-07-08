@@ -152,6 +152,23 @@ end, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
+-- NOTE: @Linxi Add border to diagnostic and hove window
+-- Taken from https://gist.github.com/timmyha/b611a8e34a4f8d13cb52ae755dbfef2c
+-- and
+local _border = 'rounded'
+vim.diagnostic.config {
+  float = { border = _border },
+}
+vim.diagnostic.config {
+  virtual_text = false,
+  float = {
+    header = 'Diagnostics',
+    source = 'if_many',
+    border = _border,
+    focusable = true,
+  },
+}
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -192,8 +209,6 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     vim.highlight.on_yank()
   end,
 })
-
--- Linxi: set indent based on filetype
 
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
@@ -277,6 +292,7 @@ require('lazy').setup({
         ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
         ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
         ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+        ['<leader>l'] = { name = '[L]azy', _ = 'which_key_ignore' },
         ['<leader>t'] = { name = '[T]oggle', _ = 'which_key_ignore' },
         ['<leader>h'] = { name = 'Git [H]unk', _ = 'which_key_ignore' },
       }
@@ -369,6 +385,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<C-S-p>', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -416,8 +433,40 @@ require('lazy').setup({
     -- setting the keybinding for LazyGit with 'keys' is recommended in
     -- order to load the plugin when the command is run for the first time
     keys = {
-      { '<leader>lg', '<cmd>LazyGit<cr>', desc = 'LazyGit' },
+      { '<leader>lg', '<cmd>LazyGit<cr>', desc = '[L]azy[G]it' },
     },
+  },
+
+  {
+    'GCBallesteros/NotebookNavigator.nvim',
+    keys = {
+      {
+        ']h',
+        function()
+          require('notebook-navigator').move_cell 'd'
+        end,
+      },
+      {
+        '[h',
+        function()
+          require('notebook-navigator').move_cell 'u'
+        end,
+      },
+      { '<leader>rc', "<cmd>lua require('notebook-navigator').run_cell()<cr>", desc = '[R]un [C]ell' },
+      { '<leader>rm', "<cmd>lua require('notebook-navigator').run_and_move()<cr>", desc = '[R]un [M]ove' },
+    },
+    dependencies = {
+      'echasnovski/mini.comment',
+      'hkupty/iron.nvim', -- repl provider
+      -- "akinsho/toggleterm.nvim", -- alternative repl provider
+      -- "benlubas/molten-nvim", -- alternative repl provider
+      'anuvyklack/hydra.nvim',
+    },
+    event = 'VeryLazy',
+    config = function()
+      local nn = require 'notebook-navigator'
+      nn.setup { activate_hydra_keys = '<leader>h' }
+    end,
   },
 
   { -- LSP Configuration & Plugins
@@ -519,6 +568,14 @@ require('lazy').setup({
           --  For example, in C this would take you to the header.
           map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
 
+          -- NOTE: @Linxi configure lsp float windows to be bordered
+          vim.lsp.handlers['textDocument/hover'] = vim.lsp.with(vim.lsp.handlers.hover, {
+            border = _border,
+          })
+          vim.lsp.handlers['textDocument/signatureHelp'] = vim.lsp.with(vim.lsp.handlers.signature_help, {
+            border = _border,
+          })
+
           -- The following two autocommands are used to highlight references of the
           -- word under your cursor when your cursor rests there for a little while.
           --    See `:help CursorHold` for information about when this is executed
@@ -579,7 +636,14 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        pyright = {},
+        pyright = {
+          -- NOTE:  @Linxi clunky and maybe dangerous way to set root_dir to cwd
+          root_dir = function()
+            local cwd = vim.fn.getcwd()
+            print('Setting python LSP root_dir to ' .. cwd)
+            return cwd
+          end,
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -600,24 +664,24 @@ require('lazy').setup({
                 callSnippet = 'Replace',
               },
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              diagnostics = { disable = { 'missing-fields' } },
               -- NOTE: Linxi: below setting is modified to let Lua know about vim global
               -- taken from: https://github.com/neovim/neovim/issues/21686#issuecomment-1522446128
-              diagnostics = {
-                -- Get the language server to recognize the `vim` global
-                globals = {
-                  'vim',
-                  'require',
-                },
-              },
-              workspace = {
-                -- Make the server aware of Neovim runtime files
-                library = vim.api.nvim_get_runtime_file('', true),
-              },
-              -- Do not send telemetry data containing a randomized but unique identifier
-              telemetry = {
-                enable = false,
-              },
+              -- diagnostics = {
+              --   -- Get the language server to recognize the `vim` global
+              --   globals = {
+              --     'vim',
+              --     'require',
+              --   },
+              -- },
+              -- workspace = {
+              --   -- Make the server aware of Neovim runtime files
+              --   library = vim.api.nvim_get_runtime_file('', true),
+              -- },
+              -- -- Do not send telemetry data containing a randomized but unique identifier
+              -- telemetry = {
+              --   enable = false,
+              -- },
             },
           },
         },
@@ -653,7 +717,6 @@ require('lazy').setup({
       }
     end,
   },
-
   { -- Autoformat
     'stevearc/conform.nvim',
     lazy = false,
@@ -734,6 +797,11 @@ require('lazy').setup({
       luasnip.config.setup {}
 
       cmp.setup {
+        -- NOTE: @Linxi add back border for autocomplete window, much nicer
+        window = {
+          completion = cmp.config.window.bordered(),
+          documentation = cmp.config.window.bordered(),
+        },
         snippet = {
           expand = function(args)
             luasnip.lsp_expand(args.body)
@@ -747,9 +815,9 @@ require('lazy').setup({
         -- No, but seriously. Please read `:help ins-completion`, it is really good!
         mapping = cmp.mapping.preset.insert {
           -- Select the [n]ext item
-          ['<C-n>'] = cmp.mapping.select_next_item(),
+          -- ['<C-n>'] = cmp.mapping.select_next_item(),
           -- Select the [p]revious item
-          ['<C-p>'] = cmp.mapping.select_prev_item(),
+          -- ['<C-p>'] = cmp.mapping.select_prev_item(),
 
           -- Scroll the documentation window [b]ack / [f]orward
           ['<C-b>'] = cmp.mapping.scroll_docs(-4),
@@ -758,13 +826,13 @@ require('lazy').setup({
           -- Accept ([y]es) the completion.
           --  This will auto-import if your LSP supports it.
           --  This will expand snippets if the LSP sent a snippet.
-          ['<C-y>'] = cmp.mapping.confirm { select = true },
+          -- ['<C-y>'] = cmp.mapping.confirm { select = true },
 
           -- If you prefer more traditional completion keymaps,
           -- you can uncomment the following lines
-          --['<CR>'] = cmp.mapping.confirm { select = true },
-          --['<Tab>'] = cmp.mapping.select_next_item(),
-          --['<S-Tab>'] = cmp.mapping.select_prev_item(),
+          ['<CR>'] = cmp.mapping.confirm { select = true },
+          ['<Tab>'] = cmp.mapping.select_next_item(),
+          ['<S-Tab>'] = cmp.mapping.select_prev_item(),
 
           -- Manually trigger a completion from nvim-cmp.
           --  Generally you don't need this, because nvim-cmp will display
@@ -807,13 +875,15 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
+    'catppuccin/nvim',
+    name = 'catppuccin',
     priority = 1000, -- Make sure to load this before all the other start plugins.
+    opts = { transparent_background = true },
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'catppuccin-frappe'
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
