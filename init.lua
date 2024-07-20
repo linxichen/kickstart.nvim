@@ -644,7 +644,6 @@ require('lazy').setup({
             return cwd
           end,
         },
-        bashls = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -654,6 +653,10 @@ require('lazy').setup({
         -- But for many setups, the LSP (`tsserver`) will work just fine
         -- tsserver = {},
         --
+
+        --NOTE: Haskell-tools exist and maybe better, but I am a beginner so
+        -- I will just stick with hls
+        hls = {},
 
         lua_ls = {
           -- cmd = {...},
@@ -754,11 +757,25 @@ require('lazy').setup({
       },
     },
   },
-
+  -- {
+  --   'olimorris/codecompanion.nvim',
+  --   dependencies = {
+  --     'nvim-lua/plenary.nvim',
+  --     'nvim-treesitter/nvim-treesitter',
+  --     'nvim-telescope/telescope.nvim', -- Optional
+  --     {
+  --       'stevearc/dressing.nvim', -- Optional: Improves the default Neovim UI
+  --       opts = {},
+  --     },
+  --   },
+  --   config = true,
+  -- },
   { -- Autocompletion
     'hrsh7th/nvim-cmp',
     event = 'InsertEnter',
     dependencies = {
+      -- NOTE: Linxi: depdends on cmp-ai
+      -- { 'tzachar/cmp-ai' },
       -- Snippet Engine & its associated nvim-cmp source
       {
         'L3MON4D3/LuaSnip',
@@ -863,6 +880,7 @@ require('lazy').setup({
           --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
         },
         sources = {
+          -- { name = 'copilot' },
           { name = 'nvim_lsp' },
           { name = 'luasnip' },
           { name = 'path' },
@@ -871,6 +889,148 @@ require('lazy').setup({
     end,
   },
 
+  -- Custom Parameters (with defaults)
+  -- NOTE: To expose ollama ports, follow this https://github.com/ollama/ollama/blob/main/docs/faq.md
+  {
+    'David-Kunz/gen.nvim',
+    config = function()
+      opts = {
+        -- model = 'codellama:7b-code', -- The default model to use.
+        model = 'codellama:latest', -- The default model to use.
+        host = '192.168.1.74', -- The host running the Ollama service.
+        port = '11434', -- The port on which the Ollama service is listening.
+        quit_map = 'q', -- set keymap for close the response window
+        retry_map = '<c-r>', -- set keymap to re-send the current prompt
+        init = function(options)
+          pcall(io.popen, 'ollama serve > /dev/null 2>&1 &')
+        end,
+        -- Function to initialize Ollama
+        command = function(options)
+          local body = { model = options.model, stream = true }
+          return 'curl --silent --no-buffer -X POST http://' .. options.host .. ':' .. options.port .. '/api/chat -d $body'
+        end,
+        -- The command for the Ollama service. You can use placeholders $prompt, $model and $body (shellescaped).
+        -- This can also be a command string.
+        -- The executed command must return a JSON object with { response, context }
+        -- (context property is optional).
+        -- list_models = '<omitted lua function>', -- Retrieves a list of model names
+        display_mode = 'float', -- The display mode. Can be "float" or "split" or "horizontal-split".
+        show_prompt = false, -- Shows the prompt submitted to Ollama.
+        show_model = true, -- Displays which model you are using at the beginning of your chat session.
+        no_auto_close = false, -- Never closes the window automatically.
+        debug = true, -- Prints errors and the command which is run.
+      }
+      require('gen').setup(opts)
+      require('gen').prompts['Elaborate_Text'] = {
+        prompt = 'Elaborate the following text:\n$text',
+        replace = true,
+      }
+      require('gen').prompts['Fix_Code'] = {
+        prompt = 'Fix the following code. Only ouput the result in format ```$filetype\n...\n```:\n```$filetype\n$text\n```',
+        replace = true,
+        extract = '```$filetype\n(.-)```',
+      }
+      require('gen').prompts['Gen Code'] = {
+        prompt = 'Generate $filetype code following precisely the instruction $input. Only ouput the result in format ```$filetype\n...\n```:\n```$filetype\n$text\n```',
+        replace = true,
+        extract = '```$filetype\n(.-)```',
+      }
+    end,
+  },
+  {
+    'TabbyML/vim-tabby',
+    config = function()
+      --- Add config here. Example config:
+      vim.g.tabby_keybinding_accept = '<Tab>'
+    end,
+  },
+  -- {
+  --   'gsuuon/model.nvim',
+  --
+  --   -- Don't need these if lazy = false
+  --   cmd = { 'M', 'Model', 'Mchat' },
+  --   init = function()
+  --     vim.filetype.add {
+  --       extension = {
+  --         mchat = 'mchat',
+  --       },
+  --     }
+  --   end,
+  --   ft = 'mchat',
+  --
+  --   keys = {
+  --     { '<C-m>d', ':Mdelete<cr>', mode = 'n' },
+  --     { '<C-m>s', ':Mselect<cr>', mode = 'n' },
+  --     { '<C-m><space>', ':Mchat<cr>', mode = 'n' },
+  --   },
+  --
+  --   -- To override defaults add a config field and call setup()
+  --
+  --   config = function()
+  --     local deepseek = require 'model.providers.openai'
+  --     local util = require 'model.util'
+  --     local starters = require 'model.prompts.starters'
+  --     require('model').setup {
+  --       hl_group = 'Substitute',
+  --       prompts = util.module.autoload 'prompt_library',
+  --       default_prompt = {
+  --         mode = 'insert_or_replace',
+  --         provider = deepseek,
+  --         options = {
+  --           url = 'https://api.deepseek.com/',
+  --           authorization = 'Bearer ' .. vim.env.OPENAI_API_KEY,
+  --         },
+  --         builder = function(input)
+  --           return {
+  --             model = 'deepseek-coder',
+  --             temperature = 0.0,
+  --             max_tokens = 4096,
+  --             messages = {
+  --               {
+  --                 role = 'system',
+  --                 content = 'You are a helpful coding assistant. You will insert or replace directly code examples. Your response should be runnable, and your words are kept in code comments. Also do not include code block surroundings ``` ``` when you return response. I want code that is compatible with the rest of the code. ',
+  --               },
+  --               { role = 'user', content = input },
+  --             },
+  --           }
+  --         end,
+  --       },
+  --     }
+  --   end,
+  --   --
+  --   --   require('model.providers.llamacpp').setup({
+  --   --     binary = '~/path/to/server/binary',
+  --   --     models = '~/path/to/models/directory'
+  --   --   })
+  --   --end
+  -- },
+  -- {
+  --   'zbirenbaum/copilot.lua',
+  --   cmd = 'Copilot',
+  --   event = 'InsertEnter',
+  --   config = function()
+  --     require('copilot').setup {
+  --       suggestion = { enabled = false },
+  --       panel = { enabled = false },
+  --       server_opts_overrides = {
+  --         settings = {
+  --           advanced = {
+  --             debug = {
+  --               overrideProxyURL = 'https://api.deepseek.com/chat/completions',
+  --               testOverrideProxyURL = 'https://api.deepseek.com/chat/completions',
+  --             },
+  --             secret_key = 'sk-e8be341407c049d4ac2c444616570197',
+  --           },
+  --         },
+  --       },
+  --     }
+  --   end,
+  -- },
+  -- {
+  --   'zbirenbaum/copilot-cmp',
+  --   dependencies = 'copilot.lua',
+  --   opts = {},
+  -- },
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
@@ -879,7 +1039,20 @@ require('lazy').setup({
     'catppuccin/nvim',
     name = 'catppuccin',
     priority = 1000, -- Make sure to load this before all the other start plugins.
-    opts = { transparent_background = true },
+    opts = {
+      transparent_background = true,
+      integrations = {
+        cmp = true,
+        gitsigns = true,
+        nvimtree = true,
+        treesitter = true,
+        notify = false,
+        mini = {
+          enabled = true,
+          indentscope_color = '',
+        },
+      },
+    },
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
