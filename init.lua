@@ -72,7 +72,7 @@ vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
-vim.g.have_nerd_font = false
+vim.g.have_nerd_font = true
 
 -- [[ Setting options ]]
 -- See `:help vim.opt`
@@ -415,60 +415,6 @@ require('lazy').setup({
       end, { desc = '[S]earch [N]eovim files' })
     end,
   },
-
-  -- NOTE: lazygit config by Linxi
-  {
-    'kdheepak/lazygit.nvim',
-    cmd = {
-      'LazyGit',
-      'LazyGitConfig',
-      'LazyGitCurrentFile',
-      'LazyGitFilter',
-      'LazyGitFilterCurrentFile',
-    },
-    -- optional for floating window border decoration
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-    },
-    -- setting the keybinding for LazyGit with 'keys' is recommended in
-    -- order to load the plugin when the command is run for the first time
-    keys = {
-      { '<leader>lg', '<cmd>LazyGit<cr>', desc = '[L]azy[G]it' },
-    },
-  },
-
-  {
-    'GCBallesteros/NotebookNavigator.nvim',
-    keys = {
-      {
-        ']h',
-        function()
-          require('notebook-navigator').move_cell 'd'
-        end,
-      },
-      {
-        '[h',
-        function()
-          require('notebook-navigator').move_cell 'u'
-        end,
-      },
-      { '<leader>rc', "<cmd>lua require('notebook-navigator').run_cell()<cr>", desc = '[R]un [C]ell' },
-      { '<leader>rm', "<cmd>lua require('notebook-navigator').run_and_move()<cr>", desc = '[R]un [M]ove' },
-    },
-    dependencies = {
-      'echasnovski/mini.comment',
-      'hkupty/iron.nvim', -- repl provider
-      -- "akinsho/toggleterm.nvim", -- alternative repl provider
-      -- "benlubas/molten-nvim", -- alternative repl provider
-      'anuvyklack/hydra.nvim',
-    },
-    event = 'VeryLazy',
-    config = function()
-      local nn = require 'notebook-navigator'
-      nn.setup { activate_hydra_keys = '<leader>h' }
-    end,
-  },
-
   { -- LSP Configuration & Plugins
     'neovim/nvim-lspconfig',
     dependencies = {
@@ -889,6 +835,18 @@ require('lazy').setup({
     end,
   },
 
+  -- Remote Development like VSCode
+  {
+    'amitds1997/remote-nvim.nvim',
+    version = '0.3.9', -- Pin to GitHub releases
+    dependencies = {
+      'nvim-lua/plenary.nvim', -- For standard functions
+      'MunifTanjim/nui.nvim', -- To build the plugin UI
+      'nvim-telescope/telescope.nvim', -- For picking b/w different remote methods
+    },
+    config = true,
+  },
+
   -- Custom Parameters (with defaults)
   -- NOTE: To expose ollama ports, follow this https://github.com/ollama/ollama/blob/main/docs/faq.md
   {
@@ -1146,7 +1104,7 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
@@ -1158,7 +1116,7 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
